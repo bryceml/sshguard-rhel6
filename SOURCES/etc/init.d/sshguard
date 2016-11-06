@@ -1,0 +1,116 @@
+#!/bin/bash
+#
+# sshguard      Start up the sshguard daemon
+#
+# chkconfig:    2345 56 24
+# description:  SSHGuard Server
+# long-description:  Sshguard is a log monitor. It protects networked hosts
+#                    from the today's widespread brute force attacks against services,
+#                    most notably SSH. It detects such attacks and blocks
+#                    the author's address with a firewall rule.
+#
+# processname:  sshguard
+# pidfile: /var/run/sshguard.pid
+
+# Author: Eugene San <eugenesan@gmail.com>
+# Modify by Julián Moreno Patiño <darkjunix@gmail.com>
+# Modified further by Bryce Larson <brycelarsn@gmail.com>
+# Do NOT "set -e"
+
+# PATH should only include /usr/* if it runs after the mountnfs.sh script
+PATH=/sbin:/usr/sbin:/bin:/usr/bin
+DESC="SSHGuard Server"
+NAME=sshguard
+DAEMON=/usr/sbin/$NAME
+PIDFILE=/var/run/$NAME.pid
+SCRIPTNAME=/etc/init.d/$NAME
+DAEMON_ARGS="-i $PIDFILE"
+
+# Source function library
+. /etc/rc.d/init.d/functions
+
+# Exit if the package is not installed
+[ ! -x "$DAEMON" ] && echo "No valid daemon $DAEMON for $NAME, exiting" && exit 0
+
+# Read configuration variable file if it is present
+[ -r /etc/sysconfig/$NAME ] && . /etc/sysconfig/$NAME
+
+# Add whitelist file and other options
+DAEMON_ARGS="$DAEMON_ARGS -w $WHITELIST $LOGFILES $ARGS"
+
+case "$1" in
+	start)
+	echo -n $"Starting $NAME: "
+	[ -r ${PIDFILE} ] && {
+		PID=$(cat ${PIDFILE})
+		checkpid $PID && {
+			failure
+			echo
+			echo "sshguard already started: PID=$PID" >&2
+			exit -1
+		}
+	}
+
+        /usr/lib/sshguard/firewall enable
+	$DAEMON $DAEMON_ARGS &>/dev/null &
+	echo $! > ${PIDFILE}
+	[ -r ${PIDFILE} ] && {
+		PID=$(cat ${PIDFILE})
+		checkpid $PID && success || failure
+		echo
+	}
+	;;
+
+	stop)
+	echo -n $"Stoping $NAME: "
+	killproc -p ${PIDFILE} ${NAME}
+        /usr/lib/sshguard/firewall disable
+	[ -r ${PIDFILE} ] && {
+		PID=$(cat ${PIDFILE})
+		checkpid $PID && failure || success
+		echo
+	}
+	echo
+	;;
+
+	restart|force-reload)
+	echo -n $"Stoping $NAME: "
+	killproc -p ${PIDFILE} ${NAME}
+	[ -r ${PIDFILE} ] && {
+		PID=$(cat ${PIDFILE})
+		checkpid $PID && failure || success
+		echo
+	}
+	echo
+        
+	/usr/lib/sshguard/firewall restart
+	
+	echo -n $"Starting $NAME: "
+	[ -r ${PIDFILE} ] && {
+		PID=$(cat ${PIDFILE})
+		checkpid $PID && {
+			failure
+			echo
+			echo "sshguard already started: PID=$PID" >&2
+			exit -1
+		}
+	}
+
+	$DAEMON $DAEMON_ARGS &>/dev/null &
+	echo $! > ${PIDFILE}
+	[ -r ${PIDFILE} ] && {
+		PID=$(cat ${PIDFILE})
+		checkpid $PID && success || failure
+		echo
+	}
+	;;
+
+	status)
+		status -p ${PIDFILE} ${NAME} && exit 0 || exit $?
+	;;
+
+	*)
+	echo "Usage: $SCRIPTNAME {start|stop|force-reload|restart|status}"
+	exit 3
+	;;
+esac
