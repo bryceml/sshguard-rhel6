@@ -16,3 +16,5 @@ To install:
 ```
 rpm -i https://github.com/bryceml/sshguard-rhel6/raw/master/RPMS/x86_64/sshguard-1.7.1-1.el6.x86_64.rpm
 ```
+
+There is also a repository available now at http://download.opensuse.org/repositories/home:/blarson:/sshguard/
